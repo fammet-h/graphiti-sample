@@ -37,13 +37,17 @@ Graphiti の結果をこの画面用の JSON に変換する。ノード・関�
 
 - 上部に「チャット」「データ投入」の切り替えを配置する。
 - チャットは左右 1:1 程度の2ペインとする。左にメッセージ一覧と入力欄、右に SVG で描くグラフを置く。
-- グラフはノードを円、関係を線とラベルで表示する。外部グラフ描画ライブラリは導入しない。
-- データ投入はテキストエリア、送信ボタン、完了表示のみとする。
+- グラフは Cytoscape.js の `cose` レイアウトでノードと関係を表示する。
+- データ投入はテキストエリア、送信ボタン、バックグラウンド状態付きドキュメント一覧で構成する。
+- 登録要求時に UUID と `queued` 状態を作り、FastAPI `BackgroundTasks` で Graphiti に登録する。状態は queued / processing / completed / failed とする。
+- 一覧 API は Graphiti の `retrieve_episodes` から永続化済みエピソードを読み、実行中の状態と合わせて返す。
+- `DELETE /api/episodes/{episode_id}` は Graphiti の `remove_episode` を呼び、該当するエピソードとそれだけに属するグラフ要素を削除する。
 
 ## Compose と設定
 
-- `neo4j`: Neo4j 5 系、データは名前付きボリュームに保存。
-- `api`: FastAPI と Graphiti Core。`OPENAI_API_KEY`、Neo4j URI / ユーザー / パスワードを環境変数で受け取る。
+- `neo4j`: Neo4j 5.26、データは名前付きボリュームに保存。
+- `api`: FastAPI と Graphiti Core。チャット用と埋め込み用 API の URL / モデル / ベクトル次元を環境変数で受け取る。
 - `frontend`: Vite 開発サーバー。`/api` を `api` サービスへプロキシする。
+- Python の依存関係は uv で管理し、Python 3.14 を使う。各サービスのビルド手順は Compose の `dockerfile_inline` に置く。
 - ホスト公開ポートはフロントエンド `5173`、API `8000`、Neo4j Browser `7474`。
 - API 起動前に Neo4j が利用可能であることを Compose の依存関係で示す。
