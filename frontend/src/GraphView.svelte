@@ -4,7 +4,7 @@
 
   let { graph } = $props();
   let container;
-  let cy;
+  let cy = $state(null);
 
   onMount(() => {
     cy = cytoscape({
@@ -43,15 +43,20 @@
           },
         },
       ],
-      layout: { name: 'cose', animate: false },
+      layout: { name: 'cose', animate: false, fit: true, padding: 30 },
     });
 
     return () => cy.destroy();
   });
 
   $effect(() => {
+    const nodes = new Map(graph.nodes.map((node) => [node.id, node.name]));
+    for (const edge of graph.edges) {
+      if (!nodes.has(edge.source)) nodes.set(edge.source, edge.source.slice(0, 8));
+      if (!nodes.has(edge.target)) nodes.set(edge.target, edge.target.slice(0, 8));
+    }
     const elements = [
-      ...graph.nodes.map((node) => ({ data: { id: node.id, label: node.name } })),
+      ...[...nodes].map(([id, label]) => ({ data: { id, label } })),
       ...graph.edges.map((edge) => ({
         data: { id: edge.id, source: edge.source, target: edge.target, label: edge.name },
       })),
@@ -59,7 +64,16 @@
     if (!cy) return;
     cy.elements().remove();
     cy.add(elements);
-    cy.layout({ name: 'cose', animate: false }).run();
+    cy.resize();
+    cy.layout({
+      name: 'cose',
+      animate: false,
+      fit: true,
+      padding: 30,
+      nodeRepulsion: () => 8000,
+      idealEdgeLength: () => 110,
+      componentSpacing: 80,
+    }).run();
   });
 </script>
 

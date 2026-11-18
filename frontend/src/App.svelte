@@ -18,7 +18,11 @@
 
   onMount(() => {
     loadDocuments();
-    const timer = setInterval(loadDocuments, 2000);
+    const timer = setInterval(() => {
+      if (documents.some((document) => document.status === 'queued' || document.status === 'processing')) {
+        loadDocuments();
+      }
+    }, 2000);
     return () => clearInterval(timer);
   });
 

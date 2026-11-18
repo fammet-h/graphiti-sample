@@ -19,15 +19,19 @@ flowchart LR
 
 リクエスト: `{ "text": "投入するテキスト" }`
 
-処理: テキストを Graphiti の `add_episode` に渡す。エピソード名は固定のサンプル名、エピソード種別は text、`group_id` は `default` とする。
+処理: テキストを Graphiti の `add_episode` に渡す。エピソード名にはジョブ UUID とタイトルを含め、エピソード種別は text、`group_id` は `default` とする。
 
-レスポンス: `{ "status": "ok" }`
+レスポンス: `{ "id": "ジョブUUID", "title": "タイトル", "created_at": "日時", "status": "queued" }`
+
+### `GET /api/episodes`
+
+Graphiti の直近100件のエピソードと実行中の登録状態を返す。各項目は `{ "id": "エピソードまたはジョブUUID", "title": "タイトル", "created_at": "日時", "status": "queued | processing | completed | failed" }`。
 
 ### `POST /api/chat`
 
 リクエスト: `{ "message": "質問" }`
 
-処理: Graphiti の検索 API で関連する関係・ノードを取得し、その結果から簡潔な回答文を組み立てる。チャット自体に別の LLM 呼び出しは行わない。
+処理: Graphiti の検索 API で関連する関係・ノード・BM25 で関連する元エピソードを取得する。質問に含まれる語と関連ノード名が合う場合は、そのノードに言及する元エピソードを優先してコンテキストに加える。同じ LLM で日本語の簡潔な回答を生成し、根拠がない場合は不明と回答する。
 
 レスポンス: `{ "answer": "回答", "nodes": [{ "id": "...", "name": "..." }], "edges": [{ "id": "...", "source": "ノードID", "target": "ノードID", "name": "関係" }] }`
 
@@ -36,10 +40,10 @@ Graphiti の結果をこの画面用の JSON に変換する。ノード・関�
 ## 画面
 
 - 上部に「チャット」「データ投入」の切り替えを配置する。
-- チャットは左右 1:1 程度の2ペインとする。左にメッセージ一覧と入力欄、右に SVG で描くグラフを置く。
+- チャットは左右 1:1 程度の2ペインとする。左にメッセージ一覧と入力欄、右に Cytoscape.js のグラフを置く。
 - グラフは Cytoscape.js の `cose` レイアウトでノードと関係を表示する。
 - データ投入はテキストエリア、送信ボタン、バックグラウンド状態付きドキュメント一覧で構成する。
-- 登録要求時に UUID と `queued` 状態を作り、FastAPI `BackgroundTasks` で Graphiti に登録する。状態は queued / processing / completed / failed とする。
+- 登録要求時にジョブ UUID と `queued` 状態を作り、FastAPI `BackgroundTasks` で Graphiti に登録する。Graphiti がエピソード UUID を生成し、投入ジョブ UUID を含む一意な名前で一覧と対応付ける。状態は queued / processing / completed / failed とする。
 - 一覧 API は Graphiti の `retrieve_episodes` から永続化済みエピソードを読み、実行中の状態と合わせて返す。
 - `DELETE /api/episodes/{episode_id}` は Graphiti の `remove_episode` を呼び、該当するエピソードとそれだけに属するグラフ要素を削除する。
 
@@ -49,5 +53,5 @@ Graphiti の結果をこの画面用の JSON に変換する。ノード・関�
 - `api`: FastAPI と Graphiti Core。チャット用と埋め込み用 API の URL / モデル / ベクトル次元を環境変数で受け取る。
 - `frontend`: Vite 開発サーバー。`/api` を `api` サービスへプロキシする。
 - Python の依存関係は uv で管理し、Python 3.14 を使う。各サービスのビルド手順は Compose の `dockerfile_inline` に置く。
-- ホスト公開ポートはフロントエンド `5173`、API `8000`、Neo4j Browser `7474`。
+- ホスト公開ポートはフロントエンド `5173`、API `8000`、Neo4j Browser `7474`、Neo4j Bolt `7687`。
 - API 起動前に Neo4j が利用可能であることを Compose の依存関係で示す。
